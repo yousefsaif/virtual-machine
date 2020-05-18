@@ -181,6 +181,12 @@ int main(int argc, const char *argv[]) {
       } break;
 
       case OP_BR: { // BR, 7
+        u_int16_t cond = (instr >> 9) & 0x7;
+        u_int16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+
+        if(cond && reg[R_COND]){
+          reg[R_PC] += pc_offset;
+        }
       } break;
 
       case OP_JMP: { // JMP, 7
