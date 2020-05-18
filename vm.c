@@ -189,13 +189,34 @@ int main(int argc, const char *argv[]) {
         }
       } break;
 
-      case OP_JMP: { // JMP, 7
+      case OP_JMP: { // JMP, 7 
+        /* Jump && Return from Subroutine*/
+        /* Handles RET when base_r is 7(111) */
+        u_int16_t base_r = (instr >> 6) & 0x7;
+        reg[R_PC] = reg[base_r];
       } break;
 
       case OP_JSR: { // JSR, 7
+        /* Jump to Subroutine */
+        reg[R_R7] = reg[R_PC];
+        u_int16_t flag = (instr >> 11) & 0x1;
+        if(flag){
+          u_int16_t pc_offset = sign_extend(instr & 0x7FF, 10);
+          reg[R_PC] += pc_offset; /* JSR */
+        }
+        else{
+          u_int16_t base_r = (instr >> 6) & 0x7;
+          reg[R_PC] = reg[base_r]; /* JSRR */
+        }
+        break;
       } break;
 
       case OP_LD: { // LD, 7
+        /*Load  */
+        uint16_t r0 = (instr >> 9) & 0x7; /* destination register (DR) */
+        u_int16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+        reg[r0] = mem_read(reg[R_PC] + pc_offset);
+        update_flags(r0);
       } break;
 
       case OP_LDI: { // LDI, 6
