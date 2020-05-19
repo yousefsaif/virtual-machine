@@ -104,7 +104,7 @@ uint16_t sign_extend(uint16_t x, int bit_count) {
 int main(int argc, const char *argv[]) {
 
   /* Load Arguments */
-  if (argc < 2) { //{Load Arguments, 5}
+  if (argc < 2) { 
     /* show usage string */
     printf("lc3 [image-file1] ...\n");
     exit(2);
@@ -131,7 +131,7 @@ int main(int argc, const char *argv[]) {
     uint16_t op = instr >> 12;
 
     switch (op) {
-      case OP_ADD: { // ADD, 6
+      case OP_ADD: {
         /* destination register (DR) */
         uint16_t r0 = (instr >> 9) & 0x7;
         /* first operand (SR1) */
@@ -151,7 +151,7 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_AND: { // AND, 7
+      case OP_AND: { 
         /* destination register (DR) */
         uint16_t r0 = (instr >> 9) & 0x7;
         /* first operand (SR1) */
@@ -170,7 +170,7 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_NOT: { // NOT, 7
+      case OP_NOT: {
         /* destination register (DR) */
         uint16_t r0 = (instr >> 9) & 0x7;
         /* source register (SR) */
@@ -180,7 +180,7 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_BR: { // BR, 7
+      case OP_BR: {
         uint16_t cond = (instr >> 9) & 0x7;
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
 
@@ -189,14 +189,14 @@ int main(int argc, const char *argv[]) {
         }
       } break;
 
-      case OP_JMP: { // JMP, 7 
+      case OP_JMP: { 
         /* Jump && Return from Subroutine*/
         /* Handles RET when base_r is 7(111) */
         uint16_t base_r = (instr >> 6) & 0x7;
         reg[R_PC] = reg[base_r];
       } break;
 
-      case OP_JSR: { // JSR, 7
+      case OP_JSR: {
         /* Jump to Subroutine */
         reg[R_R7] = reg[R_PC];
         uint16_t flag = (instr >> 11) & 0x1;
@@ -211,7 +211,7 @@ int main(int argc, const char *argv[]) {
         break;
       } break;
 
-      case OP_LD: { // LD, 7
+      case OP_LD: {
         /*Load  */
         uint16_t r0 = (instr >> 9) & 0x7; /* destination register (DR) */
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
@@ -219,7 +219,7 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_LDI: { // LDI, 6
+      case OP_LDI: {
         /* destination register (DR) */
         uint16_t r0 = (instr >> 9) & 0x7;
         /* PCoffset 9*/
@@ -229,7 +229,7 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_LDR: { // LDR, 7
+      case OP_LDR: {
         /* Load Base + offset */
         uint16_t r0 = (instr >> 9) & 0x7; /* destination register (DR) */
         uint16_t base_r = (instr >> 6) & 0x7;
@@ -239,19 +239,25 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_LEA: { // LEA, 7
+      case OP_LEA: {
+        /* Load Effective Address */
+        uint16_t r0 = (instr >> 9) & 0x7; /* destination register (DR) */
+        uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+
+        reg[r0] = reg[R_PC] + pc_offset;
+        update_flags(r0);
       } break;
 
-      case OP_ST: { // ST, 7
+      case OP_ST: { 
       } break;
 
-      case OP_STI: { // STI, 7
+      case OP_STI: { 
       } break;
 
-      case OP_STR: { // STR, 7
+      case OP_STR: { 
       } break;
 
-      case OP_TRAP: { // TRAP, 8
+      case OP_TRAP: { 
       } break;
 
       case OP_RES:
