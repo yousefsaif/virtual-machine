@@ -248,13 +248,25 @@ int main(int argc, const char *argv[]) {
         update_flags(r0);
       } break;
 
-      case OP_ST: { 
+      case OP_ST: { //Store
+        uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
+        uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+        mem_write(reg[R_PC] + pc_offset, reg[r0]);
       } break;
 
-      case OP_STI: { 
+      case OP_STI: { //Store Indirect
+        uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
+        uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+
+        mem_write(mem_read(reg[R_PC] + pc_offset), reg[r0]);
       } break;
 
-      case OP_STR: { 
+      case OP_STR: { //Store Base+offset
+        uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
+        uint16_t base_r = (instr >> 6) & 0x7;
+        uint16_t offset = sign_extend(instr && 0x3F, 6);
+
+        mem_write(reg[base_r] + offset, reg[r0]);
       } break;
 
       case OP_TRAP: { 
