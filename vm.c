@@ -282,8 +282,12 @@ int main(int argc, const char *argv[]) {
       case OP_TRAP: {
         switch (instr & 0xFF) {
           case TRAP_GETC: {
+            reg[R_R0] = (uint16_t) getchar();
           } break;
           case TRAP_OUT: {
+            // printf("%c\n",reg[R_R0] && 0XFF);
+            putc((char)reg[R_R0], stdout);
+            fflush(stdout);
           } break;
           case TRAP_PUTS: {
             /* one char per word */
@@ -295,10 +299,27 @@ int main(int argc, const char *argv[]) {
             fflush(stdout);
           } break;
           case TRAP_IN: {
+            printf("Input a character\n");
+            char c = getchar();
+            putc(c, stdout);
+            fflush(stdout);
+            reg[R_R0] = (uint16_t) c;
           } break;
           case TRAP_PUTSP: {
+            /* two chars per word */
+            uint16_t *c = memory + reg[R_R0];
+            while (*c) {
+              putc((char)*c && 0XFF, stdout);
+              if(*c >> 8){
+                putc(*c >> 8, stdout);
+              }
+              ++c;
+            }
+            fflush(stdout);
           } break;
           case TRAP_HALT: {
+            printf("Halting\n");
+            running = 0;
           } break;
         }
       } break;
