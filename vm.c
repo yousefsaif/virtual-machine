@@ -18,7 +18,7 @@ uint16_t memory[UINT16_MAX];
 /* Registers --- register stores single value on cpu*/
 enum {
   R_R0 = 0, /*R0 to R7 general purpose registers*/
-  R_R1,     /* https://www.tutorialspoint.com/enum-in-c, setting r0=0, makes r1=1, r2=2 and so on */
+  R_R1,     /* setting r0=0, makes r1=1, r2=2 and so on */
   R_R2,
   R_R3,
   R_R4,
@@ -103,13 +103,38 @@ uint16_t sign_extend(uint16_t x, int bit_count) {
   return x;
 }
 
+//switch from little-endian to big-endian (as LC3 is big-endian, and modern computers are little-endian)
+uint16_t swap16(uint16_t x) { 
+  return (x << 8) | (x >> 8); 
+}
 
+void read_image_file(FILE *file) {
+  /* the origin tells us where in memory to place the image */
+  uint16_t origin;
+  fread(&origin, sizeof(origin), 1, file);
+  origin = swap16(origin);
 
+  /* we know the maximum file size so we only need one fread */
+  uint16_t max_read = UINT16_MAX - origin;
+  uint16_t *p = memory + origin;
+  size_t read = fread(p, sizeof(uint16_t), max_read, file);
 
+  /* swap to little endian */
+  while (read-- > 0) {
+    *p = swap16(*p);
+    ++p;
+  }
+}
 
-
-
-
+int read_image(const char *image_path) {
+  FILE *file = fopen(image_path, "rb");
+  if (!file) {
+    return 0;
+  };
+  read_image_file(file);
+  fclose(file);
+  return 1;
+}
 
 int main(int argc, const char *argv[]) {
 
