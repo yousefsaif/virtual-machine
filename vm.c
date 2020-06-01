@@ -60,6 +60,11 @@ enum {
   OP_TRAP    /* execute trap */
 };
 
+/* memory mapped registers */
+enum {
+  MR_KBSR = 0xFE00, /* keyboard status  register*/
+  MR_KBDR = 0xFE02  /* keyboard data    register*/
+};
 
 /* Conditional Flags */
 /* Provide infomation on most recently executed calculation, allows programs 
@@ -103,7 +108,7 @@ uint16_t sign_extend(uint16_t x, int bit_count) {
   return x;
 }
 
-//switch from little-endian to big-endian (as LC3 is big-endian, and modern computers are little-endian)
+//switch from little-endian to big-endian (as LC3 is big-endian, and (most)modern computers are little-endian)
 uint16_t swap16(uint16_t x) { 
   return (x << 8) | (x >> 8); 
 }
@@ -134,6 +139,23 @@ int read_image(const char *image_path) {
   read_image_file(file);
   fclose(file);
   return 1;
+}
+
+/* Memory Access */
+void mem_write(uint16_t address, uint16_t val) {
+   memory[address] = val; 
+}
+
+uint16_t mem_read(uint16_t address) {
+  if (address == MR_KBSR) {
+    if (check_key()) {
+      memory[MR_KBSR] = (1 << 15);
+      memory[MR_KBDR] = getchar();
+    } else {
+      memory[MR_KBSR] = 0;
+    }
+  }
+  return memory[address];
 }
 
 int main(int argc, const char *argv[]) {
