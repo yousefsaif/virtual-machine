@@ -1,6 +1,6 @@
-#include <signal.h>
-#include <stdint.h>
-#include <stdio.h>
+#include <signal.h>   // SIGINT
+#include <stdint.h>  // uint16_t
+#include <stdio.h>  // FILE
 #include <stdlib.h>
 #include <string.h>
 /* unix */
@@ -12,8 +12,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-/* Memory - 65536 locations */
-uint16_t memory[UINT16_MAX];
+/* ----------------------------------------------------------------------------------------------------------------------------------------------------------------- */
 
 /* Registers --- register stores single value on cpu*/
 enum {
@@ -29,9 +28,6 @@ enum {
   R_COND, /* Condition flag, tells us info about previous calculation */
   R_COUNT // think this is the enums name? or size?
 };
-
-/* Store registers in an array */
-uint16_t reg[R_COUNT];
 
 /* Instruction set */
 /* Each has optcode(kind of task to perform), and set of parameters */
@@ -87,6 +83,17 @@ enum {
   TRAP_HALT = 0x25   /* halt the program */
 };
 
+/* Memory - 65536 locations */
+uint16_t memory[UINT16_MAX];
+
+/* Register Storage - Store registers in an array */
+uint16_t reg[R_COUNT];
+
+
+
+/* -----------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+/* Helper Functions */
+
 //update condtion flag
 void update_flags(uint16_t r) {
   if (reg[r] == 0) {
@@ -141,6 +148,17 @@ int read_image(const char *image_path) {
   return 1;
 }
 
+uint16_t check_key() {
+  fd_set readfds;
+  FD_ZERO(&readfds);
+  FD_SET(STDIN_FILENO, &readfds);
+
+  struct timeval timeout;
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 0;
+  return select(1, &readfds, NULL, NULL, &timeout) != 0;
+}
+
 /* Memory Access */
 void mem_write(uint16_t address, uint16_t val) {
    memory[address] = val; 
@@ -158,6 +176,31 @@ uint16_t mem_read(uint16_t address) {
   return memory[address];
 }
 
+/* Input Buffering */
+struct termios original_tio;
+
+void disable_input_buffering() {
+  tcgetattr(STDIN_FILENO, &original_tio);
+  struct termios new_tio = original_tio;
+  new_tio.c_lflag &= ~ICANON & ~ECHO;
+  tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+}
+
+void restore_input_buffering() {
+  tcsetattr(STDIN_FILENO, TCSANOW, &original_tio);
+}
+
+/* Handle Interrupt  */
+void handle_interrupt(int signal) {
+  restore_input_buffering();
+  printf("\n");
+  exit(-2);
+}
+
+
+
+/* -----------------------------------------------------------------------------------------------------------------------------------------------------------------*/
+
 int main(int argc, const char *argv[]) {
 
   /* Load Arguments */
@@ -174,7 +217,9 @@ int main(int argc, const char *argv[]) {
     }
   }
 
-  //{ Setup, 12 }
+  /* Setup */
+  signal(SIGINT, handle_interrupt);
+  disable_input_buffering();
 
   /* set the PC to starting position */
   /* 0x3000 is the default */
@@ -206,7 +251,8 @@ int main(int argc, const char *argv[]) {
         }
 
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_AND: { 
         /* destination register (DR) */
@@ -225,7 +271,8 @@ int main(int argc, const char *argv[]) {
           reg[r0] = reg[r1] & reg[r2];
         }
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_NOT: {
         /* destination register (DR) */
@@ -235,30 +282,34 @@ int main(int argc, const char *argv[]) {
 
         reg[r0] = ~reg[r1]; 
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_BR: {
-        uint16_t cond = (instr >> 9) & 0x7;
+        // uint16_t cond = (instr >> 9) & 0x7;
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+        uint16_t cond = (instr >> 9) & 0x7;
 
-        if(cond && reg[R_COND]){
+        if(cond & reg[R_COND]){
           reg[R_PC] += pc_offset;
         }
-      } break;
+      } 
+      break;
 
       case OP_JMP: { 
         /* Jump && Return from Subroutine*/
         /* Handles RET when base_r is 7(111) */
         uint16_t base_r = (instr >> 6) & 0x7;
         reg[R_PC] = reg[base_r];
-      } break;
+      } 
+      break;
 
       case OP_JSR: {
         /* Jump to Subroutine */
         reg[R_R7] = reg[R_PC];
         uint16_t flag = (instr >> 11) & 0x1;
         if(flag){
-          uint16_t pc_offset = sign_extend(instr & 0x7FF, 10);
+          uint16_t pc_offset = sign_extend(instr & 0x7FF, 11);
           reg[R_PC] += pc_offset; /* JSR */
         }
         else{
@@ -266,7 +317,8 @@ int main(int argc, const char *argv[]) {
           reg[R_PC] = reg[base_r]; /* JSRR */
         }
         break;
-      } break;
+      } 
+      break;
 
       case OP_LD: {
         /*Load  */
@@ -274,7 +326,8 @@ int main(int argc, const char *argv[]) {
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
         reg[r0] = mem_read(reg[R_PC] + pc_offset);
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_LDI: {
         /* destination register (DR) */
@@ -284,17 +337,19 @@ int main(int argc, const char *argv[]) {
         /* add pc_offset to the current PC, look at that memory location to get the final address */
         reg[r0] = mem_read(mem_read(reg[R_PC] + pc_offset));
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_LDR: {
         /* Load Base + offset */
         uint16_t r0 = (instr >> 9) & 0x7; /* destination register (DR) */
         uint16_t base_r = (instr >> 6) & 0x7;
-        uint16_t offset = sign_extend(instr && 0x3F, 6);
+        uint16_t offset = sign_extend(instr & 0x3F, 6);
 
         reg[r0] = mem_read(reg[base_r] + offset);
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_LEA: {
         /* Load Effective Address */
@@ -303,34 +358,39 @@ int main(int argc, const char *argv[]) {
 
         reg[r0] = reg[R_PC] + pc_offset;
         update_flags(r0);
-      } break;
+      } 
+      break;
 
       case OP_ST: { //Store
         uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
         mem_write(reg[R_PC] + pc_offset, reg[r0]);
-      } break;
+      } 
+      break;
 
       case OP_STI: { //Store Indirect
         uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
         uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
 
         mem_write(mem_read(reg[R_PC] + pc_offset), reg[r0]);
-      } break;
+      } 
+      break;
 
       case OP_STR: { //Store Base+offset
         uint16_t r0 = (instr >> 9) & 0x7; /* Source register (SR) */
         uint16_t base_r = (instr >> 6) & 0x7;
-        uint16_t offset = sign_extend(instr && 0x3F, 6);
+        uint16_t offset = sign_extend(instr & 0x3F, 6);
 
         mem_write(reg[base_r] + offset, reg[r0]);
-      } break;
+      } 
+      break;
 
       case OP_TRAP: {
         switch (instr & 0xFF) {
-          case TRAP_GETC: {
+          case TRAP_GETC: //{
             reg[R_R0] = (uint16_t) getchar();
-          } break;
+          //} break;
+            break;
           case TRAP_OUT: {
             // printf("%c\n",reg[R_R0] && 0XFF);
             putc((char)reg[R_R0], stdout);
@@ -346,39 +406,54 @@ int main(int argc, const char *argv[]) {
             fflush(stdout);
           } break;
           case TRAP_IN: {
-            printf("Input a character\n");
+            // printf("Input a character\n");
+            printf("Input a character: ");
             char c = getchar();
             putc(c, stdout);
-            fflush(stdout);
+            // fflush(stdout);
             reg[R_R0] = (uint16_t) c;
           } break;
           case TRAP_PUTSP: {
             /* two chars per word */
             uint16_t *c = memory + reg[R_R0];
+            // while (*c) {
+            //   putc((char)*c && 0XFF, stdout);
+            //   if(*c >> 8){
+            //     putc(*c >> 8, stdout);
+            //   }
+            //   ++c;
+            // }
             while (*c) {
-              putc((char)*c && 0XFF, stdout);
-              if(*c >> 8){
-                putc(*c >> 8, stdout);
-              }
+              char char1 = (*c) & 0xFF;
+              putc(char1, stdout);
+              char char2 = (*c) >> 8;
+              if (char2)
+                putc(char2, stdout);
               ++c;
             }
             fflush(stdout);
           } break;
-          case TRAP_HALT: {
-            printf("Halting\n");
+          case TRAP_HALT: //{
+            // printf("Halting\n");
+            puts("HALT");
             running = 0;
-          } break;
-        }
+
+            break;
+          //} break;
+        //}
+        } break;
       } break;
 
       case OP_RES:
       case OP_RTI:
-      default: {
-        // BAD OPCODE, 7
+      default: //{
+        // BAD OPCODE
         abort();
-      } break;
+        break;
+      //} break;
 
     }
   }
-  // { Shutdown, 12 }
+  /* Shutdown */
+  restore_input_buffering();
 }
