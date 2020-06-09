@@ -286,9 +286,8 @@ int main(int argc, const char *argv[]) {
       break;
 
       case OP_BR: {
-        // uint16_t cond = (instr >> 9) & 0x7;
-        uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
         uint16_t cond = (instr >> 9) & 0x7;
+        uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
 
         if(cond & reg[R_COND]){
           reg[R_PC] += pc_offset;
@@ -387,15 +386,15 @@ int main(int argc, const char *argv[]) {
 
       case OP_TRAP: {
         switch (instr & 0xFF) {
-          case TRAP_GETC: //{
+          case TRAP_GETC: 
             reg[R_R0] = (uint16_t) getchar();
-          //} break;
             break;
           case TRAP_OUT: {
-            // printf("%c\n",reg[R_R0] && 0XFF);
             putc((char)reg[R_R0], stdout);
             fflush(stdout);
-          } break;
+          } 
+          break;
+
           case TRAP_PUTS: {
             /* one char per word */
             uint16_t *c = memory + reg[R_R0];
@@ -404,56 +403,48 @@ int main(int argc, const char *argv[]) {
               ++c;
             }
             fflush(stdout);
-          } break;
+          } 
+          break;
+
           case TRAP_IN: {
-            // printf("Input a character\n");
-            printf("Input a character: ");
+            printf("Input a character\n");
             char c = getchar();
             putc(c, stdout);
-            // fflush(stdout);
             reg[R_R0] = (uint16_t) c;
-          } break;
+          } 
+          break;
+
           case TRAP_PUTSP: {
             /* two chars per word */
             uint16_t *c = memory + reg[R_R0];
-            // while (*c) {
-            //   putc((char)*c && 0XFF, stdout);
-            //   if(*c >> 8){
-            //     putc(*c >> 8, stdout);
-            //   }
-            //   ++c;
-            // }
             while (*c) {
-              char char1 = (*c) & 0xFF;
-              putc(char1, stdout);
-              char char2 = (*c) >> 8;
-              if (char2)
-                putc(char2, stdout);
+              putc((char)*c && 0XFF, stdout);
+              if(*c >> 8){
+                putc(*c >> 8, stdout);
+              }
               ++c;
             }
             fflush(stdout);
-          } break;
-          case TRAP_HALT: //{
-            // printf("Halting\n");
-            puts("HALT");
+          } 
+          break;
+          
+          case TRAP_HALT:
+            printf("Halting\n");
             running = 0;
-
             break;
-          //} break;
-        //}
         } break;
-      } break;
+      } break; //Trap end
 
       case OP_RES:
       case OP_RTI:
-      default: //{
+      default:
         // BAD OPCODE
         abort();
         break;
-      //} break;
 
-    }
-  }
+    } //switch end 
+  } //while end 
+  
   /* Shutdown */
   restore_input_buffering();
 }
